@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZRP Condensation Simulator</title>
+<style>
+  :root{
+    --bg: #0b0f14;
+    --panel: #111820;
+    --panel2: #0e141b;
+    --line: #223040;
+    --text: #dbe6ef;
+    --sub: #7f93a6;
+    --accent: #ffb454;   /* condensate amber */
+    --accent2: #4fd1c5;  /* teal for flow */
+    --danger: #ff6b6b;
+    --mono: 'JetBrains Mono','SF Mono',Consolas,monospace;
+    --serif: 'Georgia','Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--mono);
+    height:100%;width:100%;overflow:hidden;}
+  .app{display:flex;height:100vh;height:100dvh;width:100vw;overflow:hidden;}
+  .sidebar{
+    width:340px;min-width:340px;max-width:340px;background:var(--panel);border-right:1px solid var(--line);
+    padding:18px 18px 90px 18px;overflow-y:auto;
+  }
+  @media (max-width: 820px){
+    .app{flex-direction:column;}
+    .sidebar{
+      width:100%;min-width:0;max-width:none;height:38vh;height:38dvh;
+      border-right:none;border-bottom:1px solid var(--line);padding-bottom:18px;
+    }
+    .main{flex:1;min-height:0;}
+    .bottompanel{height:130px;min-height:130px;}
+  }
+  .sidebar h1{
+    font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.3px;margin:0 0 2px 0;color:#f2f6fa;
+  }
+  .sidebar .sub{font-size:11px;color:var(--sub);margin-bottom:18px;letter-spacing:.5px;}
+  .section{margin-bottom:20px;border-top:1px solid var(--line);padding-top:14px;}
+  .section:first-of-type{border-top:none;padding-top:0;}
+  .section-label{
+    font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent2);margin-bottom:9px;font-weight:600;
+  }
+  label.field{display:block;font-size:11.5px;color:var(--sub);margin:9px 0 4px 0;}
+  select,input[type=text],input[type=number]{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    padding:7px 8px;font-family:var(--mono);font-size:12.5px;border-radius:3px;
+  }
+  select:focus,input:focus{outline:none;border-color:var(--accent2);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  input[type=range]{
+    width:100%;-webkit-appearance:none;appearance:none;height:4px;background:var(--line);border-radius:2px;margin:6px 0 2px 0;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent2);cursor:pointer;border:2px solid var(--bg);
+  }
+  .valrow{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);}
+  .valrow b{color:var(--text);font-weight:600;}
+  .btnrow{display:flex;gap:8px;margin-top:6px;}
+  button{
+    font-family:var(--mono);font-size:12px;border-radius:3px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);padding:8px 10px;cursor:pointer;letter-spacing:.3px;
+  }
+  button:hover{border-color:var(--accent2);color:#fff;}
+  button.primary{background:var(--accent2);color:#062024;border-color:var(--accent2);font-weight:700;}
+  button.primary:hover{filter:brightness(1.08);}
+  button.danger:hover{border-color:var(--danger);color:var(--danger);}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+  .classlist{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+  .classitem{display:flex;gap:6px;align-items:center;}
+  .classitem input{flex:1;}
+  .classitem button{padding:4px 8px;font-size:14px;line-height:1;}
+  .hint{font-size:10.5px;color:#586b7d;margin-top:5px;line-height:1.5;}
+  textarea{
+    width:100%;height:70px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    font-family:var(--mono);font-size:11px;padding:6px;border-radius:3px;resize:vertical;
+  }
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .topbar{
+    height:52px;min-height:52px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+    padding:0 20px;gap:22px;background:var(--panel);
+  }
+  .stat{font-size:11px;color:var(--sub);}
+  .stat b{color:var(--text);font-size:13px;margin-left:5px;}
+  .stat.condensate b{color:var(--accent);}
+  .canvaswrap{flex:1;position:relative;background:
+      radial-gradient(circle at 30% 20%, #101821 0%, var(--bg) 60%);
+    min-height:0;
+  }
+  #graphCanvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+  .bottompanel{
+    height:170px;min-height:170px;border-top:1px solid var(--line);background:var(--panel);
+    display:flex;padding:10px 20px;gap:20px;
+  }
+  .histwrap{flex:1;position:relative;min-width:0;}
+  .histwrap .caption{font-size:10px;color:var(--sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  #histCanvas{width:100%;height:calc(100% - 16px);}
+  .legend{width:190px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;justify-content:center;gap:8px;border-left:1px solid var(--line);padding-left:20px;}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+  .footer-note{font-size:10px;color:#445566;margin-top:14px;line-height:1.6;}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <h1>ZRP&nbsp;Condensation</h1>
+    <div class="sub">zero-range process &middot; live simulator</div>
+
+    <div class="section">
+      <div class="section-label">Graph G</div>
+      <label class="field">Topology</label>
+      <select id="graphType">
+        <option value="complete">Complete graph K_M</option>
+        <option value="ring">Ring (cycle)</option>
+        <option value="star">Star</option>
+        <option value="rpartite">Complete r-partite</option>
+        <option value="custom">Custom routing matrix</option>
+        <option value="graph6">Graph6 string</option>
+        <option value="tree">Cayley tree (Bethe lattice)</option>
+      </select>
+
+      <div id="treeControl" style="display:none;">
+        <label class="field">Coordination number z (root degree / non-root degree)</label>
+        <input type="range" id="treeZ" min="2" max="8" value="3" step="1">
+        <div class="valrow"><span>z</span><b id="treeZVal">3</b></div>
+        <label class="field">Generations (shells) beyond root, g</label>
+        <input type="range" id="treeDepth" min="0" max="8" value="3" step="1">
+        <div class="valrow"><span>g</span><b id="treeDepthVal">3</b></div>
+        <div class="hint" id="treeSizeHint">Root has z neighbours; every other non-leaf node has z-1 children (one edge goes back to its parent) — the standard Cayley tree / Bethe lattice convention.</div>
+      </div>
+
+      <label class="field" style="display:flex;align-items:center;gap:7px;margin-top:12px;">
+        <input type="checkbox" id="enhancedView" style="width:auto;">
+        Enhanced view — clear edges + drag vertices
+      </label>
+      <div class="hint">Uses a force-directed layout to reflect graph geometry. Drag any node to reposition it; it stays pinned until you rebuild.</div>
+
+      <div id="graph6Control" style="display:none;">
+        <label class="field">Graph6 string</label>
+        <input type="text" id="graph6Input" value="Bw">
+        <div class="hint" id="graph6Validation">Paste a graph6-encoded graph (any N via the standard extended-length prefix; capped at 500 sites here for performance). Routing is uniform over each site's graph neighbours. Default shown ("Bw") is a triangle, N=3.</div>
+      </div>
+
+      <div id="mControl">
+        <label class="field">Number of sites, M</label>
+        <input type="range" id="Mslider" min="3" max="60" value="12" step="1">
+        <div class="valrow"><span>M</span><b id="Mval">12</b></div>
+      </div>
+
+      <div id="rpartiteControl" style="display:none;">
+        <label class="field">Class sizes (comma sep., e.g. 4,4,4)</label>
+        <input type="text" id="rpartiteSizes" value="4,4,4">
+        <div class="hint">Nodes in a class only connect to nodes in other classes; a departing particle routes uniformly among all nodes outside its own class.</div>
+      </div>
+
+      <div id="customControl" style="display:none;">
+        <label class="field">Row-stochastic routing matrix P (JSON, M×M)</label>
+        <textarea id="customMatrix">[[0,1],[1,0]]</textarea>
+        <div class="hint">Rows will be renormalised to sum to 1. Sets M automatically.</div>
+        <div class="hint" id="matrixValidation" style="color:var(--accent2);"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Particles</div>
+      <label class="field">Number of walkers, N</label>
+      <input type="range" id="Nslider" min="4" max="400" value="60" step="1">
+      <div class="valrow"><span>N (walkers)</span><b id="Nval">60</b></div>
+      <div class="valrow" style="margin-top:2px;"><span>density &rho; = N/M</span><b id="rhoVal">5.00</b></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Departure rate u(k)</div>
+      <label class="field">Form</label>
+      <select id="rateType">
+        <option value="const">u(k) = 1 (condenses only if graph/routing is inhomogeneous)</option>
+        <option value="condense" selected>u(k) = 1 + b/k (condensing for b&gt;2)</option>
+        <option value="custom">custom expression in k, b</option>
+      </select>
+      <div id="bControl">
+        <label class="field">Parameter b</label>
+        <input type="range" id="bSlider" min="0" max="10" value="4" step="0.1">
+        <div class="valrow"><span>b</span><b id="bVal">4.0</b></div>
+      </div>
+      <div id="customRateControl" style="display:none;">
+        <label class="field">u(k) — JS expression, vars k,b</label>
+        <input type="text" id="customRate" value="1 + b/k">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Condensation detection</div>
+      <label class="field">Declare "condensed" once one site holds this % of all particles</label>
+      <input type="range" id="condenseFracSlider" min="20" max="99" value="90" step="1">
+      <div class="valrow"><span>threshold</span><b id="condenseFracVal">90</b>%</div>
+      <div class="hint">An arbitrary but sensible operational cutoff — works for any graph/rate, unlike a theoretical ρ_c (which only exists in closed form for regular graphs with the standard u(k)=1+b/k rate).</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Simulation speed</div>
+      <label class="field">Playback rate — simulated events per real second (log scale)</label>
+      <input type="range" id="speedSlider" min="0" max="100" value="60" step="1">
+      <div class="valrow"><span>rate</span><b id="speedVal">60</b> events/s (wall-clock)</div>
+      <div class="hint">This is a playback-speed knob, not part of the model: the chain's own clock t still advances by exact exponential increments regardless of this setting. It only controls how many of those already-correct events you watch per second of real time.</div>
+      <div class="hint">At high speed, hops beyond a visual cap are applied instantly to keep counts exact while the animation stays smooth.</div>
+    </div>
+
+    <div class="section">
+      <div class="btnrow">
+        <button class="primary" id="btnPlay">▶ Run</button>
+        <button id="btnPause" disabled>⏸ Pause</button>
+      </div>
+      <div class="btnrow">
+        <button id="btnApply">Apply / Rebuild</button>
+        <button class="danger" id="btnReset">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Degree-resolved mean occupancy</div>
+      <div class="hint">Time-average of N_i (weighted by exact holding times, from t=0 to now), grouped by each site's degree. Degree = number of outgoing routes (out-degree of P).</div>
+      <div id="degreeStats" style="font-size:11.5px;color:var(--text);line-height:1.7;margin-top:8px;"></div>
+    </div>
+
+    <div class="footer-note">
+      Dynamics: an occupied site with k particles ships one particle at rate u(k), to a
+      destination chosen by the routing matrix P — independent of the destination's occupation.
+      This is the defining zero-range property.
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="stat">clock t <b id="clockVal">0.00</b></div>
+      <div class="stat">events <b id="eventsVal">0</b></div>
+      <div class="stat condensate">condensate site <b id="condSite">–</b></div>
+      <div class="stat condensate">condensate occupancy <b id="condOcc">–</b></div>
+      <div class="stat">peak occupancy reached <b id="peakOcc">–</b></div>
+      <div class="stat">avg of N_max(t) over run <b id="avgMaxOcc">–</b></div>
+      <div class="stat condensate">time to condense <b id="condTime">–</b></div>
+      <div class="stat">structural favorite (argmax &pi;<sub>i</sub>) <b id="piFav">–</b></div>
+      <div class="stat">max theoretical <b id="rhoInfo">–</b></div>
+    </div>
+    <div class="canvaswrap">
+      <canvas id="graphCanvas"></canvas>
+    </div>
+    <div class="bottompanel">
+      <div class="histwrap">
+        <div class="caption">occupation N_i by site</div>
+        <canvas id="histCanvas"></canvas>
+      </div>
+      <div class="legend">
+        <div><span class="dot" style="background:var(--accent2)"></span>site (size ~ &radic;occupation)</div>
+        <div><span class="dot" style="background:var(--accent)"></span>current max-occupied site</div>
+        <div><span class="dot" style="background:#fff"></span>particle in flight</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const graphType = $('graphType'), Mslider=$('Mval'&&document.getElementById('Mslider')), MvalEl=$('Mval');
+  const Nslider=$('Nslider'), NvalEl=$('Nval'), rhoValEl=$('rhoVal');
+  const rateType=$('rateType'), bSlider=$('bSlider'), bValEl=$('bVal'), customRate=$('customRate');
+  const speedSlider=$('speedSlider'), speedValEl=$('speedVal');
+  const condenseFracSlider=$('condenseFracSlider'), condenseFracVal=$('condenseFracVal');
+  const rpartiteControl=$('rpartiteControl'), rpartiteSizes=$('rpartiteSizes');
+  const customControl=$('customControl'), customMatrixEl=$('customMatrix');
+  const graph6Control=$('graph6Control'), graph6Input=$('graph6Input'), graph6Validation=$('graph6Validation');
+  const enhancedView=$('enhancedView');
+  const treeControl=$('treeControl'), treeZ=$('treeZ'), treeZVal=$('treeZVal'), treeDepth=$('treeDepth'), treeDepthVal=$('treeDepthVal'), treeSizeHint=$('treeSizeHint');
+  const mControl=$('mControl'), bControl=$('bControl'), customRateControl=$('customRateControl');
+  const btnPlay=$('btnPlay'), btnPause=$('btnPause'), btnApply=$('btnApply'), btnReset=$('btnReset');
+  const clockVal=$('clockVal'), eventsVal=$('eventsVal'), condSite=$('condSite'), condOcc=$('condOcc'), peakOcc=$('peakOcc'), avgMaxOcc=$('avgMaxOcc'), condTime=$('condTime'), rhoInfo=$('rhoInfo'), piFav=$('piFav');
+
+  const graphCanvas=$('graphCanvas'), gctx=graphCanvas.getContext('2d');
+  const histCanvas=$('histCanvas'), hctx=histCanvas.getContext('2d');
+
+  // ---------- UI wiring: show/hide controls ----------
+  function syncTopologyUI(){
+    const t = graphType.value;
+    rpartiteControl.style.display = (t==='rpartite') ? 'block' : 'none';
+    customControl.style.display = (t==='custom') ? 'block' : 'none';
+    graph6Control.style.display = (t==='graph6') ? 'block' : 'none';
+    treeControl.style.display = (t==='tree') ? 'block' : 'none';
+    mControl.style.display = (t==='custom' || t==='rpartite' || t==='graph6' || t==='tree') ? 'none' : 'block';
+  }
+  function syncRateUI(){
+    const t = rateType.value;
+    bControl.style.display = (t==='const') ? 'none' : 'block';
+    customRateControl.style.display = (t==='custom') ? 'block' : 'none';
+  }
+  syncTopologyUI(); syncRateUI();
+
+  let rebuildTimer = null;
+  function scheduleRebuild(delay){
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(()=>{ buildSim(); }, delay===undefined?150:delay);
+  }
+
+  document.getElementById('Mslider').addEventListener('input', e=>{ MvalEl.textContent = e.target.value; updateRhoLabel(); scheduleRebuild(150); });
+  Nslider.addEventListener('input', e=>{ NvalEl.textContent = e.target.value; updateRhoLabel(); scheduleRebuild(150); });
+  graphType.addEventListener('change', ()=>{ syncTopologyUI(); updateRhoLabel(); scheduleRebuild(0); });
+  rpartiteSizes.addEventListener('input', ()=>{ updateRhoLabel(); scheduleRebuild(400); });
+  customMatrixEl.addEventListener('input', ()=>{ updateRhoLabel(); scheduleRebuild(700); });
+  rateType.addEventListener('change', ()=>{ syncRateUI(); scheduleRebuild(0); });
+  customRate.addEventListener('input', ()=> scheduleRebuild(500));
+  bSlider.addEventListener('input', e=>{ bValEl.textContent = parseFloat(e.target.value).toFixed(1); if(sim){ sim.b = parseFloat(e.target.value); } });
+  let targetEventsPerSec = 60;
+  function speedFromSlider(v){
+    // exponential map: slider 0..100 -> 0.2 .. 5000 events/sec
+    const minR=0.2, maxR=50000;
+    const t = v/100;
+    return minR*Math.pow(maxR/minR, t);
+  }
+  function updateSpeedLabel(){
+    const eps = speedFromSlider(parseFloat(speedSlider.value));
+    targetEventsPerSec = eps;
+    speedValEl.textContent = eps>=100 ? Math.round(eps) : eps.toFixed(eps>=10?0:1);
+  }
+  speedSlider.addEventListener('input', updateSpeedLabel);
+  updateSpeedLabel();
+  condenseFracSlider.addEventListener('input', e=>{
+    condenseFracVal.textContent = e.target.value;
+    if(sim) recomputeCondenseThreshold();
+  });
+
+  const matrixValidation = document.getElementById('matrixValidation');
+  function validateCustomMatrix(){
+    let mat;
+    try{ mat = JSON.parse(customMatrixEl.value); }
+    catch(e){ matrixValidation.style.color='var(--danger)'; matrixValidation.textContent = 'Invalid JSON.'; return; }
+    if(!Array.isArray(mat) || mat.length===0 || !mat.every(r=>Array.isArray(r) && r.length===mat.length)){
+      matrixValidation.style.color='var(--danger)'; matrixValidation.textContent = 'Matrix must be square (M rows of M numbers).'; return;
+    }
+    const M = mat.length;
+    const notes = [];
+    let anyNonzero = true;
+    for(let i=0;i<M;i++){
+      const s = mat[i].reduce((a,b)=>a+b,0);
+      if(s<=0){ notes.push('row '+i+' sums to 0 (dead end — invalid)'); anyNonzero=false; }
+      else if(Math.abs(s-1)>1e-9){ notes.push('row '+i+' sums to '+s.toFixed(3)+' → normalised to 1'); }
+    }
+    if(!anyNonzero){ matrixValidation.style.color='var(--danger)'; matrixValidation.textContent = notes.join('; '); return; }
+    matrixValidation.style.color = notes.length ? 'var(--accent)' : 'var(--accent2)';
+    matrixValidation.textContent = notes.length ? notes.join('; ') : ('M='+M+', all rows already sum to 1 — used as-is.');
+  }
+  customMatrixEl.addEventListener('input', validateCustomMatrix);
+  validateCustomMatrix();
+
+  function updateRhoLabel(){
+    const M = getPlannedM();
+    const N = parseInt(Nslider.value);
+    rhoValEl.textContent = (N/M).toFixed(2);
+  }
+  const MAX_DENSE_M = 500; // practical cap: routing matrix + stationary-dist + force-layout are all O(M^2)
+  function treeNodeCount(z, depth){
+    if(depth<=0) return 1;
+    let total = 1, shellSize = z;
+    for(let g=1; g<=depth; g++){
+      total += shellSize;
+      shellSize *= (z-1);
+      if(total>1e7) return total; // bail early, will be rejected by cap anyway
+    }
+    return total;
+  }
+  function updateTreeHint(){
+    const z = parseInt(treeZ.value), d = parseInt(treeDepth.value);
+    const M = treeNodeCount(z,d);
+    treeSizeHint.textContent = 'Total sites M = ' + (M>MAX_DENSE_M? M.toLocaleString()+' (exceeds the '+MAX_DENSE_M+'-site limit — reduce z or generations)' : M) + '.';
+    treeSizeHint.style.color = (M>MAX_DENSE_M) ? 'var(--danger)' : 'var(--sub)';
+  }
+  treeZ.addEventListener('input', e=>{ treeZVal.textContent=e.target.value; updateTreeHint(); updateRhoLabel(); scheduleRebuild(150); });
+  treeDepth.addEventListener('input', e=>{ treeDepthVal.textContent=e.target.value; updateTreeHint(); updateRhoLabel(); scheduleRebuild(150); });
+  updateTreeHint();
+
+  function buildCayleyTree(z, depth){
+    // node 0 = root. Root has z children; every other non-leaf node has (z-1) children
+    // (one edge already used connecting it to its own parent) — standard Cayley tree convention.
+    const parent=[-1], gen=[0], childrenOf=[[]];
+    let frontier=[0];
+    for(let g=1; g<=depth; g++){
+      const nextFrontier=[];
+      frontier.forEach(pid=>{
+        const numChildren = (pid===0) ? z : (z-1);
+        for(let c=0;c<numChildren;c++){
+          const id = parent.length;
+          parent.push(pid); gen.push(g); childrenOf.push([]);
+          childrenOf[pid].push(id);
+          nextFrontier.push(id);
+        }
+      });
+      frontier = nextFrontier;
+    }
+    return {M:parent.length, parent, gen, childrenOf};
+  }
+
+  function treeRadialLayout(tree, depth){
+    // classic radial tree layout: angular width per node proportional to its leaf-descendant count
+    const {M, childrenOf, gen} = tree;
+    const leafCount = new Array(M).fill(0);
+    // post-order via reverse insertion order (children always have higher index than parent by construction)
+    for(let i=M-1;i>=0;i--){
+      if(childrenOf[i].length===0) leafCount[i]=1;
+      else leafCount[i]=childrenOf[i].reduce((a,c)=>a+leafCount[c],0);
+    }
+    const angStart=new Array(M).fill(0), angEnd=new Array(M).fill(0), angle=new Array(M).fill(0);
+    angStart[0]=0; angEnd[0]=2*Math.PI;
+    for(let i=0;i<M;i++){
+      const kids = childrenOf[i];
+      if(kids.length===0) continue;
+      const span = angEnd[i]-angStart[i];
+      let cursor = angStart[i];
+      const totalLeaves = leafCount[i];
+      kids.forEach(c=>{
+        const width = span * (leafCount[c]/totalLeaves);
+        angStart[c]=cursor; angEnd[c]=cursor+width;
+        cursor += width;
+      });
+    }
+    for(let i=0;i<M;i++){ angle[i] = (angStart[i]+angEnd[i])/2; }
+    const maxGen = Math.max(1,depth);
+    return Array.from({length:M},(_,i)=>({ang:angle[i], radFrac: gen[i]/maxGen}));
+  }
+  function getPlannedM(){
+    if(graphType.value==='rpartite'){
+      return parseSizes(rpartiteSizes.value).reduce((a,b)=>a+b,0) || 1;
+    }
+    if(graphType.value==='custom'){
+      try{ return JSON.parse(customMatrixEl.value).length; }catch(e){ return 1; }
+    }
+    if(graphType.value==='graph6'){
+      try{ return decodeGraph6(graph6Input.value).n; }catch(e){ return 1; }
+    }
+    if(graphType.value==='tree'){
+      return treeNodeCount(parseInt(treeZ.value), parseInt(treeDepth.value));
+    }
+    return parseInt(document.getElementById('Mslider').value);
+  }
+  function parseSizes(s){
+    return s.split(',').map(x=>parseInt(x.trim())).filter(x=>Number.isFinite(x)&&x>0);
+  }
+  rpartiteSizes.addEventListener('input', updateRhoLabel);
+  customMatrixEl.addEventListener('input', updateRhoLabel);
+
+  // ---------- Graph6 decoding ----------
+  function decodeGraph6(str){
+    str = str.trim();
+    if(!str) throw new Error('Empty graph6 string.');
+    const bytes = Array.from(str).map(c=>c.charCodeAt(0)-63);
+    if(bytes.some(b=>b<0||b>63)) throw new Error('Invalid graph6 character.');
+    let idx=0, n;
+    if(bytes[0] !== 63){
+      n = bytes[0]; idx=1;
+    } else if(bytes[1] !== 63){
+      // 3-byte extended form: 18-bit N, big-endian, each 6 bits
+      if(bytes.length<4) throw new Error('Truncated graph6 length header.');
+      n = (bytes[1]<<12) | (bytes[2]<<6) | bytes[3];
+      idx = 4;
+    } else {
+      // 6-byte extended form: 36-bit N, big-endian, each 6 bits
+      if(bytes.length<8) throw new Error('Truncated graph6 length header.');
+      n = 0;
+      for(let k=2;k<8;k++){ n = n*64 + bytes[k]; }
+      idx = 8;
+    }
+    if(n<1) throw new Error('Graph must have at least 1 vertex.');
+    if(n>MAX_DENSE_M) throw new Error('N='+n+' exceeds the practical limit of '+MAX_DENSE_M+' sites for real-time simulation here.');
+    const bits=[];
+    for(let k=idx;k<bytes.length;k++){
+      const b=bytes[k];
+      for(let bpos=5; bpos>=0; bpos--){ bits.push((b>>bpos)&1); }
+    }
+    const needed = n*(n-1)/2;
+    if(bits.length < needed) throw new Error('String too short for N='+n+' (need '+needed+' bits, got '+bits.length+').');
+    const adj = Array.from({length:n},()=>new Array(n).fill(0));
+    let bi=0;
+    for(let j=1;j<n;j++){
+      for(let i=0;i<j;i++){
+        if(bits[bi++]){ adj[i][j]=1; adj[j][i]=1; }
+      }
+    }
+    return {n, adj};
+  }
+  function validateGraph6(){
+    try{
+      const {n,adj} = decodeGraph6(graph6Input.value);
+      const isolated = [];
+      for(let i=0;i<n;i++){ if(adj[i].every(v=>v===0)) isolated.push(i); }
+      graph6Validation.style.color = isolated.length ? 'var(--danger)' : 'var(--accent2)';
+      graph6Validation.textContent = isolated.length
+        ? ('N='+n+' — isolated vertex/vertices with no edges: '+isolated.join(',')+' (invalid, no outgoing route).')
+        : ('Parsed OK — N='+n+' vertices.');
+    }catch(e){
+      graph6Validation.style.color='var(--danger)';
+      graph6Validation.textContent = e.message;
+    }
+  }
+  graph6Input.addEventListener('input', ()=>{ validateGraph6(); updateRhoLabel(); scheduleRebuild(500); });
+  validateGraph6();
+
+  // ---------- Force-directed layout (Fruchterman-Reingold style), positions in [0,1]^2 ----------
+  function forceDirectedLayout(M, edges){
+    if(M<=1) return [{x:0.5,y:0.5}];
+    let pos = Array.from({length:M},()=>({x:Math.random(),y:Math.random()}));
+    const k = 1/Math.sqrt(M);
+    let temp = 0.12;
+    const iterations = 300;
+    for(let iter=0; iter<iterations; iter++){
+      const disp = Array.from({length:M},()=>({x:0,y:0}));
+      for(let i=0;i<M;i++){
+        for(let j=i+1;j<M;j++){
+          let dx=pos[i].x-pos[j].x, dy=pos[i].y-pos[j].y;
+          let dist=Math.sqrt(dx*dx+dy*dy)||1e-4;
+          const force=(k*k)/dist;
+          const ux=dx/dist, uy=dy/dist;
+          disp[i].x+=ux*force; disp[i].y+=uy*force;
+          disp[j].x-=ux*force; disp[j].y-=uy*force;
+        }
+      }
+      edges.forEach(([a,b])=>{
+        let dx=pos[a].x-pos[b].x, dy=pos[a].y-pos[b].y;
+        let dist=Math.sqrt(dx*dx+dy*dy)||1e-4;
+        const force=(dist*dist)/k;
+        const ux=dx/dist, uy=dy/dist;
+        disp[a].x-=ux*force; disp[a].y-=uy*force;
+        disp[b].x+=ux*force; disp[b].y+=uy*force;
+      });
+      for(let i=0;i<M;i++){
+        const dlen=Math.sqrt(disp[i].x*disp[i].x+disp[i].y*disp[i].y)||1e-4;
+        pos[i].x += (disp[i].x/dlen)*Math.min(dlen,temp);
+        pos[i].y += (disp[i].y/dlen)*Math.min(dlen,temp);
+        pos[i].x = Math.min(1,Math.max(0,pos[i].x));
+        pos[i].y = Math.min(1,Math.max(0,pos[i].y));
+      }
+      temp *= 0.98;
+    }
+    return pos;
+  }
+
+  // ---------- Simulation state ----------
+  let sim = null;          // {M,N,occ[],P[][],positions[],b,rateType,customExpr,t,events}
+  let running = false;
+  let pinnedDrags = {};    // persists across rebuilds; cleared only on Reset. {index: {x,y}}
+  let particlesInFlight = []; // {from,to,startTime,dur}
+  let lastFrameTime = null;
+  let eventBudget = 0;
+
+  function rateFn(k, sim){
+    if(k<=0) return 0;
+    if(sim.rateKind==='const') return 1;
+    if(sim.rateKind==='condense') return 1 + sim.b/k;
+    // custom
+    try{
+      const f = sim.customFn;
+      const v = f(k, sim.b);
+      return (v>0 && isFinite(v)) ? v : 0;
+    }catch(e){ return 0; }
+  }
+
+  function buildRouting(type){
+    let M, P, positions, classOf=null;
+    if(type==='tree'){
+      const z = parseInt(treeZ.value), depth = parseInt(treeDepth.value);
+      const projected = treeNodeCount(z,depth);
+      if(projected>MAX_DENSE_M){ alert('Tree would have '+projected+' sites, exceeding the '+MAX_DENSE_M+'-site practical limit. Reduce z or generations.'); return null; }
+      const tree = buildCayleyTree(z, depth);
+      M = tree.M;
+      P = Array.from({length:M},(_,i)=>{
+        const row = new Array(M).fill(0);
+        const neighbours = tree.childrenOf[i].concat(tree.parent[i]>=0 ? [tree.parent[i]] : []);
+        const deg = neighbours.length;
+        neighbours.forEach(j=>{ row[j]=1/deg; });
+        return row;
+      });
+      positions = treeRadialLayout(tree, depth);
+      return {M,P,positions,classOf};
+    }
+    if(type==='graph6'){
+      let g;
+      try{ g = decodeGraph6(graph6Input.value); }
+      catch(e){ alert('Graph6 error: '+e.message); return null; }
+      M = g.n;
+      P = Array.from({length:M},(_,i)=>{
+        const row = new Array(M).fill(0);
+        const deg = g.adj[i].reduce((a,b)=>a+b,0);
+        if(deg===0){ alert('Vertex '+i+' is isolated (no edges) — every site needs an outgoing route.'); return null; }
+        for(let j=0;j<M;j++){ if(g.adj[i][j]) row[j]=1/deg; }
+        return row;
+      });
+      if(P.includes(null)) return null;
+      positions = circleLayout(M);
+      return {M,P,positions,classOf};
+    }
+    if(type==='custom'){
+      let mat;
+      try{ mat = JSON.parse(customMatrixEl.value); }
+      catch(e){ alert('Invalid JSON for routing matrix.'); return null; }
+      M = mat.length;
+      if(M>MAX_DENSE_M){ alert('Matrix has '+M+' rows, exceeding the '+MAX_DENSE_M+'-site practical limit.'); return null; }
+      for(let i=0;i<M;i++){
+        const s = mat[i].reduce((a,b)=>a+b,0);
+        if(s<=0){ alert('Row '+i+' sums to 0 — every site needs at least one outgoing route.'); return null; }
+      }
+      P = mat.map(row=>{
+        const s = row.reduce((a,b)=>a+b,0);
+        return row.map(v=>v/s);
+      });
+      positions = circleLayout(M);
+      return {M,P,positions,classOf};
+    }
+
+    M = parseInt(document.getElementById('Mslider').value);
+
+    if(type==='complete'){
+      P = Array.from({length:M},(_,i)=>Array.from({length:M},(_,j)=> i===j?0:1/(M-1)));
+      positions = circleLayout(M);
+    } else if(type==='ring'){
+      P = Array.from({length:M},(_,i)=>{
+        const row = new Array(M).fill(0);
+        row[(i+1)%M]=0.5; row[(i-1+M)%M]+=0.5;
+        return row;
+      });
+      positions = circleLayout(M);
+    } else if(type==='star'){
+      // node 0 = center
+      P = Array.from({length:M},()=>new Array(M).fill(0));
+      for(let j=1;j<M;j++){ P[0][j] = 1/(M-1); }
+      for(let i=1;i<M;i++){ P[i][0] = 1; }
+      positions = starLayout(M);
+    } else if(type==='rpartite'){
+      const sizes = parseSizes(rpartiteSizes.value);
+      if(sizes.length<2){ alert('Need at least 2 classes for r-partite graph.'); return null; }
+      M = sizes.reduce((a,b)=>a+b,0);
+      classOf = new Array(M);
+      let idx=0;
+      sizes.forEach((sz,c)=>{ for(let k=0;k<sz;k++){ classOf[idx++]=c; } });
+      P = Array.from({length:M},(_,i)=>{
+        const row = new Array(M).fill(0);
+        const otherCount = M - sizes[classOf[i]];
+        for(let j=0;j<M;j++){ if(classOf[j]!==classOf[i]) row[j] = 1/otherCount; }
+        return row;
+      });
+      positions = rpartiteLayout(sizes);
+    }
+    return {M,P,positions,classOf};
+  }
+
+  function circleLayout(M){
+    const pos=[];
+    for(let i=0;i<M;i++){
+      const ang = -Math.PI/2 + 2*Math.PI*i/M;
+      pos.push({ang});
+    }
+    return pos;
+  }
+  function starLayout(M){
+    const pos=[{ang:null,center:true}];
+    for(let i=1;i<M;i++){
+      const ang = -Math.PI/2 + 2*Math.PI*(i-1)/(M-1);
+      pos.push({ang});
+    }
+    return pos;
+  }
+  function rpartiteLayout(sizes){
+    // columns per class
+    const pos=[]; const r=sizes.length;
+    sizes.forEach((sz,c)=>{
+      for(let k=0;k<sz;k++){
+        pos.push({col:c, row:k, rows:sz, cols:r});
+      }
+    });
+    return pos;
+  }
+
+  function computeStationaryPi(P, M){
+    // Cesaro-averaged power iteration: robust even if P is periodic (e.g. star, bipartite routing)
+    let pi = new Array(M).fill(1/M);
+    const burn = 150, iters = 450;
+    const acc = new Array(M).fill(0);
+    for(let t=0;t<iters;t++){
+      const next = new Array(M).fill(0);
+      for(let i=0;i<M;i++){
+        const pi_i = pi[i];
+        if(pi_i<=0) continue;
+        const row = P[i];
+        for(let j=0;j<M;j++){ if(row[j]>0) next[j]+=pi_i*row[j]; }
+      }
+      pi = next;
+      if(t>=burn){ for(let j=0;j<M;j++) acc[j]+=pi[j]; }
+    }
+    const n = iters-burn;
+    return acc.map(v=>v/n);
+  }
+
+  function buildSim(){
+    const built = buildRouting(graphType.value);
+    if(!built) return;
+    const {M,P,positions,classOf} = built;
+    const N = parseInt(Nslider.value);
+    const occ = new Array(M).fill(0);
+    for(let i=0;i<N;i++){ occ[i%M]++; } // even start
+    let rateKind = rateType.value;
+    let customFn = null;
+    if(rateKind==='custom'){
+      try{ customFn = new Function('k','b', 'return ('+customRate.value+');'); }
+      catch(e){ alert('Invalid rate expression'); return; }
+    }
+    sim = {
+      M, N, occ, P, positions, classOf,
+      rateKind, b: parseFloat(bSlider.value), customFn,
+      t: 0, events: 0
+    };
+    sim.useForceLayout = enhancedView.checked;
+    if(sim.useForceLayout){
+      const edges=[];
+      for(let i=0;i<M;i++){ for(let j=i+1;j<M;j++){ if(P[i][j]>0||P[j][i]>0) edges.push([i,j]); } }
+      const fp = forceDirectedLayout(M, edges);
+      sim.positions = fp.map((pt,i)=>{
+        if(pinnedDrags[i]){
+          return {forceUnit:pt, pinned:true, x:pinnedDrags[i].x, y:pinnedDrags[i].y};
+        }
+        return {forceUnit:pt, pinned:false};
+      });
+    }
+    sim.piStat = computeStationaryPi(P, M);
+    sim.degree = P.map(row => row.reduce((c,v)=>c+(v>0?1:0),0));
+    sim.timeWeightedOcc = new Array(M).fill(0);
+    sim.timeWeightedMax = 0;
+    { let pk=0, pkS=0; for(let ii=0;ii<M;ii++){ if(occ[ii]>pk){pk=occ[ii]; pkS=ii;} } sim.peakOcc=pk; sim.peakOccSite=pkS; sim.peakOccTime=0; }
+    let piMaxI=0; for(let i=1;i<M;i++){ if(sim.piStat[i]>sim.piStat[piMaxI]) piMaxI=i; }
+    sim.piMaxI = piMaxI;
+    recomputeCondenseThreshold();
+    particlesInFlight = [];
+    eventBudget = 0;
+    layoutScreenPositions();
+    updateStats();
+    drawAll();
+  }
+
+  function recomputeCondenseThreshold(){
+    if(!sim) return;
+    sim.condenseTime = null;
+    const frac = parseFloat(condenseFracSlider.value)/100;
+    sim.condenseThreshold = Math.ceil(frac*sim.N);
+  }
+
+  // screen coords for current canvas size
+  function layoutScreenPositions(){
+    if(!sim) return;
+    const w = graphCanvas.clientWidth, h = graphCanvas.clientHeight;
+    const cx = w/2, cy = h/2;
+    const type = graphType.value;
+    if(sim.useForceLayout){
+      const padX = w*0.09, padY = h*0.09;
+      sim.positions.forEach(p=>{
+        if(p.pinned) return; // dragged nodes keep their manual position
+        p.x = padX + p.forceUnit.x*(w-2*padX);
+        p.y = padY + p.forceUnit.y*(h-2*padY);
+      });
+      return;
+    }
+    if(type==='star'){
+      const R = Math.min(w,h)*0.36;
+      sim.positions.forEach(p=>{
+        if(p.center){ p.x=cx; p.y=cy; }
+        else { p.x = cx + R*Math.cos(p.ang); p.y = cy + R*Math.sin(p.ang); }
+      });
+    } else if(type==='rpartite'){
+      const padX = w*0.14, padY = h*0.16;
+      const cols = sim.positions[0].cols;
+      sim.positions.forEach(p=>{
+        const colX = cols===1 ? cx : padX + (w-2*padX)*(p.col/(cols-1));
+        const rows = p.rows;
+        const rowY = rows===1 ? cy : padY + (h-2*padY)*(p.row/(rows-1));
+        p.x = colX; p.y = rowY;
+      });
+    } else if(type==='tree'){
+      const R = Math.min(w,h)*0.44;
+      sim.positions.forEach(p=>{
+        p.x = cx + p.radFrac*R*Math.cos(p.ang);
+        p.y = cy + p.radFrac*R*Math.sin(p.ang);
+      });
+    } else {
+      const R = Math.min(w,h)*0.38;
+      sim.positions.forEach(p=>{
+        p.x = cx + R*Math.cos(p.ang);
+        p.y = cy + R*Math.sin(p.ang);
+      });
+    }
+  }
+
+  // ---------- Gillespie-style stepping ----------
+  function stepEvent(){
+    const M = sim.M, occ = sim.occ, P = sim.P;
+    const rates = new Array(M);
+    let total = 0;
+    for(let i=0;i<M;i++){
+      const r = occ[i]>0 ? rateFn(occ[i], sim) : 0;
+      rates[i]=r; total+=r;
+    }
+    if(total<=0) return false;
+    // advance clock (exponential mean 1/total)
+    const dt = -Math.log(Math.random())/total;
+    const twOcc = sim.timeWeightedOcc;
+    let preHopMax = 0;
+    for(let ii=0; ii<M; ii++){ twOcc[ii] += occ[ii]*dt; if(occ[ii]>preHopMax) preHopMax=occ[ii]; }
+    sim.timeWeightedMax += preHopMax*dt;
+    sim.t += dt;
+    // choose departure site
+    let x = Math.random()*total, i=0, acc=0;
+    for(; i<M; i++){ acc += rates[i]; if(x<=acc) break; }
+    if(i>=M) i=M-1;
+    // choose destination
+    const row = P[i];
+    let y = Math.random(), j=0, acc2=0;
+    for(; j<M; j++){ acc2 += row[j]; if(y<=acc2) break; }
+    if(j>=M) j=M-1;
+    occ[i]--; occ[j]++;
+    sim.events++;
+    return {from:i, to:j};
+  }
+
+  // ---------- Animation loop ----------
+  function frame(ts){
+    if(lastFrameTime===null) lastFrameTime=ts;
+    const dt = Math.min(0.1,(ts-lastFrameTime)/1000);
+    lastFrameTime = ts;
+
+    if(running && sim){
+      eventBudget += targetEventsPerSec*dt;
+      const MAX_ANIMATED_PER_FRAME = 4;
+      let animatedThisFrame = 0;
+      let guard = 0;
+      while(eventBudget>=1 && guard<60000){
+        guard++;
+        eventBudget -= 1;
+        const ev = stepEvent();
+        if(!ev){ eventBudget=0; break; }
+        let curMax=0, curMaxSite=0;
+        for(let ii=0; ii<sim.M; ii++){ if(sim.occ[ii]>curMax){ curMax=sim.occ[ii]; curMaxSite=ii; } }
+        if(curMax>sim.peakOcc){ sim.peakOcc=curMax; sim.peakOccSite=curMaxSite; sim.peakOccTime=sim.t; }
+        if(sim.condenseThreshold!=null && sim.condenseTime===null && curMax>=sim.condenseThreshold){
+          sim.condenseTime = sim.t;
+        }
+        if(animatedThisFrame < MAX_ANIMATED_PER_FRAME){
+          particlesInFlight.push({
+            from: ev.from, to: ev.to,
+            start: ts, dur: Math.max(70, Math.min(260, 1000/Math.max(1,targetEventsPerSec)*3))
+          });
+          animatedThisFrame++;
+        }
+      }
+      updateStats();
+    }
+
+    // prune finished flights
+    particlesInFlight = particlesInFlight.filter(f => (ts - f.start) < f.dur);
+
+    drawAll(ts);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- Drawing ----------
+  function resizeCanvases(){
+    const wrap = graphCanvas.parentElement;
+    const dpr = window.devicePixelRatio||1;
+    graphCanvas.width = wrap.clientWidth*dpr; graphCanvas.height = wrap.clientHeight*dpr;
+    graphCanvas.style.width = wrap.clientWidth+'px'; graphCanvas.style.height = wrap.clientHeight+'px';
+    gctx.setTransform(dpr,0,0,dpr,0,0);
+
+    const hwrap = histCanvas.parentElement;
+    const hh = hwrap.clientHeight-16;
+    histCanvas.width = hwrap.clientWidth*dpr; histCanvas.height = hh*dpr;
+    histCanvas.style.width = hwrap.clientWidth+'px'; histCanvas.style.height = hh+'px';
+    hctx.setTransform(dpr,0,0,dpr,0,0);
+
+    if(sim) layoutScreenPositions();
+  }
+  window.addEventListener('resize', resizeCanvases);
+
+  function drawAll(ts){
+    drawGraph(ts||performance.now());
+    drawHist();
+  }
+
+  function drawGraph(ts){
+    const w = graphCanvas.clientWidth, h = graphCanvas.clientHeight;
+    gctx.clearRect(0,0,w,h);
+    if(!sim) return;
+    const {M,occ,P,positions} = sim;
+
+    // find max-occupied site
+    let maxI=0; for(let i=1;i<M;i++){ if(occ[i]>occ[maxI]) maxI=i; }
+
+    // draw edges (bright + always shown in enhanced view; thin/sampled otherwise)
+    const enhanced = sim.useForceLayout;
+    gctx.strokeStyle = enhanced ? 'rgba(130,180,220,0.5)' : 'rgba(80,110,140,0.14)';
+    gctx.lineWidth = enhanced ? 1.6 : 1;
+    const drawEdgeThreshold = enhanced ? true : (M<=30);
+    if(drawEdgeThreshold){
+      for(let i=0;i<M;i++){
+        for(let j=i+1;j<M;j++){
+          if(P[i][j]>0 || P[j][i]>0){
+            gctx.beginPath();
+            gctx.moveTo(positions[i].x, positions[i].y);
+            gctx.lineTo(positions[j].x, positions[j].y);
+            gctx.stroke();
+          }
+        }
+      }
+    }
+
+    // nodes
+    const maxOcc = Math.max(1,...occ);
+    for(let i=0;i<M;i++){
+      const p = positions[i];
+      const k = occ[i];
+      const rad = 8 + 26*Math.sqrt(k/Math.max(1,sim.N)) ;
+      const isCond = (i===maxI && k>0);
+      gctx.beginPath();
+      gctx.arc(p.x,p.y,rad,0,2*Math.PI);
+      gctx.fillStyle = isCond ? 'rgba(255,180,84,0.22)' : 'rgba(79,209,197,0.12)';
+      gctx.fill();
+      gctx.lineWidth = isCond?2.4:1.4;
+      gctx.strokeStyle = isCond ? '#ffb454' : '#4fd1c5';
+      gctx.stroke();
+
+      // occupation dots or number
+      if(k>0 && k<=12){
+        const rr = Math.min(3.4, 20/k);
+        for(let d=0; d<k; d++){
+          const a = 2*Math.PI*d/k;
+          const rDot = rad*0.55;
+          gctx.beginPath();
+          gctx.arc(p.x+rDot*Math.cos(a), p.y+rDot*Math.sin(a), rr, 0, 2*Math.PI);
+          gctx.fillStyle = isCond ? '#ffd9a0' : '#bfeeea';
+          gctx.fill();
+        }
+      } else if(k>12){
+        gctx.fillStyle = isCond ? '#ffe6bd' : '#d7f5f2';
+        gctx.font = '600 12px JetBrains Mono, monospace';
+        gctx.textAlign='center'; gctx.textBaseline='middle';
+        gctx.fillText(k, p.x, p.y);
+      }
+
+      // site index label
+      gctx.fillStyle = 'rgba(150,170,190,0.55)';
+      gctx.font = '10px JetBrains Mono, monospace';
+      gctx.textAlign='center'; gctx.textBaseline='top';
+      gctx.fillText('#'+i, p.x, p.y+rad+4);
+    }
+
+    // particles in flight
+    particlesInFlight.forEach(f=>{
+      const prog = Math.min(1,(ts-f.start)/f.dur);
+      const a = positions[f.from], b = positions[f.to];
+      const x = a.x + (b.x-a.x)*prog, y = a.y + (b.y-a.y)*prog;
+      // slight arc
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      const nx = -(b.y-a.y), ny=(b.x-a.x);
+      const norm = Math.hypot(nx,ny)||1;
+      const bend = 14*Math.sin(Math.PI*prog);
+      const cx2 = x + (nx/norm)*bend*0;
+      gctx.beginPath();
+      gctx.arc(x, y - bend*0, 3.6, 0, 2*Math.PI);
+      gctx.fillStyle = '#ffffff';
+      gctx.shadowColor='#ffffff'; gctx.shadowBlur=6;
+      gctx.fill();
+      gctx.shadowBlur=0;
+    });
+  }
+
+  function drawHist(){
+    const w = histCanvas.clientWidth, h = histCanvas.clientHeight;
+    hctx.clearRect(0,0,w,h);
+    if(!sim) return;
+    const {M,occ} = sim;
+    const maxOcc = Math.max(1,...occ);
+    const gap = M>60?1:3;
+    const barW = Math.max(1,(w-gap*(M+1))/M);
+    let maxI=0; for(let i=1;i<M;i++){ if(occ[i]>occ[maxI]) maxI=i; }
+    for(let i=0;i<M;i++){
+      const bh = (occ[i]/maxOcc)*(h-4);
+      const x = gap + i*(barW+gap);
+      const y = h - bh;
+      hctx.fillStyle = (i===maxI && occ[i]>0) ? '#ffb454' : '#3f6f7a';
+      hctx.fillRect(x,y,barW,bh);
+    }
+  }
+
+  function updateStats(){
+    if(!sim) return;
+    clockVal.textContent = sim.t.toFixed(2);
+    eventsVal.textContent = sim.events;
+    let maxI=0; for(let i=1;i<sim.M;i++){ if(sim.occ[i]>sim.occ[maxI]) maxI=i; }
+    condSite.textContent = '#'+maxI;
+    condOcc.textContent = sim.occ[maxI] + ' / ' + sim.N;
+    peakOcc.textContent = sim.peakOcc + ' / ' + sim.N + '  (site #'+sim.peakOccSite+' at t='+sim.peakOccTime.toFixed(2)+')';
+    avgMaxOcc.textContent = sim.t>0 ? (sim.timeWeightedMax/sim.t).toFixed(2) + ' / ' + sim.N : '–';
+
+    if(sim.condenseTime===null){
+      condTime.textContent = 'not yet (target N_max ≥ '+sim.condenseThreshold+')';
+    } else {
+      condTime.textContent = sim.condenseTime.toFixed(2) + '  (N_max reached ' + sim.condenseThreshold + ')';
+    }
+
+    const piMax = sim.piStat[sim.piMaxI], piMin = Math.min(...sim.piStat);
+    const heterogeneous = (piMax/piMin) > 1.05;
+    piFav.textContent = '#'+sim.piMaxI + '  (π=' + piMax.toFixed(3) + (heterogeneous?'':', ~uniform') + ')';
+
+    const rho = sim.N/sim.M;
+    if(sim.rateKind==='condense'){
+      rhoInfo.textContent = 'ρ_c ≈ 1/(b-2) ' + (sim.b>2 ? '= '+(1/(sim.b-2)).toFixed(2) : '(b≤2: no condensation)');
+    } else if(sim.rateKind==='const'){
+      rhoInfo.textContent = heterogeneous
+        ? 'graph inhomogeneous → condenses on argmax π as ρ grows'
+        : 'graph homogeneous (uniform π) → no condensation expected';
+    } else {
+      rhoInfo.textContent = '—';
+    }
+
+    renderDegreeStats();
+  }
+
+  const degreeStatsEl = $('degreeStats');
+  function renderDegreeStats(){
+    if(!sim) return;
+    const groups = new Map(); // degree -> {count, sumTW}
+    for(let i=0;i<sim.M;i++){
+      const d = sim.degree[i];
+      if(!groups.has(d)) groups.set(d, {count:0, sumTW:0});
+      const g = groups.get(d);
+      g.count += 1;
+      g.sumTW += sim.timeWeightedOcc[i];
+    }
+    const degrees = Array.from(groups.keys()).sort((a,b)=>a-b);
+    const t = sim.t;
+    degreeStatsEl.innerHTML = degrees.map(d=>{
+      const g = groups.get(d);
+      const mean = t>0 ? (g.sumTW/(t*g.count)) : 0;
+      return '<div style="display:flex;justify-content:space-between;">'
+        + '<span>deg '+d+' ('+g.count+' site'+(g.count===1?'':'s')+')</span>'
+        + '<b>'+mean.toFixed(3)+'</b></div>';
+    }).join('');
+  }
+
+  enhancedView.addEventListener('change', ()=>{
+    graphCanvas.style.cursor = enhancedView.checked ? 'grab' : 'default';
+    scheduleRebuild(0);
+  });
+
+  // drag-to-reposition nodes (only active in enhanced/force-layout mode)
+  let dragIndex = null;
+  graphCanvas.addEventListener('mousedown', e=>{
+    if(!sim || !sim.useForceLayout) return;
+    const rect = graphCanvas.getBoundingClientRect();
+    const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+    let best=-1, bestD=1e9;
+    sim.positions.forEach((p,i)=>{
+      const d = Math.hypot(p.x-mx, p.y-my);
+      if(d<bestD){ bestD=d; best=i; }
+    });
+    if(bestD<=32){
+      dragIndex=best; sim.positions[best].pinned=true; graphCanvas.style.cursor='grabbing';
+      pinnedDrags[best] = {x:sim.positions[best].x, y:sim.positions[best].y};
+    }
+  });
+  window.addEventListener('mousemove', e=>{
+    if(dragIndex===null || !sim) return;
+    const rect = graphCanvas.getBoundingClientRect();
+    const x = e.clientX-rect.left, y = e.clientY-rect.top;
+    sim.positions[dragIndex].x = x;
+    sim.positions[dragIndex].y = y;
+    pinnedDrags[dragIndex] = {x,y};
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(dragIndex!==null){ dragIndex=null; if(enhancedView.checked) graphCanvas.style.cursor='grab'; }
+  });
+
+  // ---------- Buttons ----------
+  btnApply.addEventListener('click', ()=>{
+    running=false; btnPlay.disabled=false; btnPause.disabled=true;
+    buildSim();
+  });
+  btnReset.addEventListener('click', ()=>{
+    running=false; btnPlay.disabled=false; btnPause.disabled=true;
+    pinnedDrags = {};
+    buildSim();
+  });
+  btnPlay.addEventListener('click', ()=>{
+    if(!sim) buildSim();
+    running=true; btnPlay.disabled=true; btnPause.disabled=false;
+  });
+  btnPause.addEventListener('click', ()=>{
+    running=false; btnPlay.disabled=false; btnPause.disabled=true;
+  });
+
+  // ---------- init ----------
+  function init(){
+    resizeCanvases();
+    updateRhoLabel();
+    buildSim();
+  }
+  window.addEventListener('load', ()=>{ setTimeout(init, 30); });
+  window.addEventListener('resize', ()=>{ if(sim) layoutScreenPositions(); });
+})();
+</script>
+</body>
+</html>

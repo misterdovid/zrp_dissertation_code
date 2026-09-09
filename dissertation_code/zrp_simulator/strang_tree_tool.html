@@ -1,0 +1,832 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<style>
+  #strang-tool {
+    --ink: #1c2b2d;
+    --paper: #f6f4ee;
+    --line: #c9c2b2;
+    --accent: #3d6b5c;
+    --accent-dim: #a9c4ba;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --serif: 'Iowan Old Style', 'Georgia', serif;
+    font-family: var(--serif);
+    color: var(--ink);
+    background: var(--paper);
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2rem 1.75rem 2.5rem;
+    line-height: 1.5;
+    box-sizing: border-box;
+  }
+  #strang-tool * { box-sizing: border-box; }
+  #strang-tool h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 0.15rem;
+    letter-spacing: 0.01em;
+  }
+  #strang-tool .subtitle {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+    margin: 0 0 1.6rem;
+  }
+  #strang-tool .row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+  }
+  #strang-tool .field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  #strang-tool label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #6b6355;
+  }
+  #strang-tool label .sym {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--ink);
+    font-size: 0.95rem;
+    margin-right: 0.35rem;
+  }
+  #strang-tool input[type="number"], #strang-tool input[type="text"] {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  #strang-tool input[type="number"]:focus, #strang-tool input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  #strang-tool .hint {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: #948c7c;
+  }
+  #strang-tool button.generate {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    background: var(--accent);
+    color: #f6f4ee;
+    border: none;
+    padding: 0.65rem 1.1rem;
+    border-radius: 3px;
+    cursor: pointer;
+    width: 100%;
+    letter-spacing: 0.02em;
+    transition: background 0.15s ease;
+  }
+  #strang-tool button.generate:hover { background: #2c5245; }
+  #strang-tool .error {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: #a03d3d;
+    background: #f6e9e6;
+    border: 1px solid #d9b3aa;
+    border-radius: 3px;
+    padding: 0.6rem 0.8rem;
+    margin-top: 1rem;
+    white-space: pre-wrap;
+  }
+  #strang-tool .results {
+    margin-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1.3rem;
+  }
+  #strang-tool .stat-line {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px dotted var(--line);
+  }
+  #strang-tool .stat-line span:first-child { color: #6b6355; }
+  #strang-tool .stat-line span:last-child { color: var(--ink); font-weight: 600; }
+  #strang-tool .check-ok {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    margin-top: 0.6rem;
+  }
+  #strang-tool .viz-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #6b6355;
+    margin: 1.3rem 0 0.5rem;
+  }
+  #strang-tool .viz-box {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+  }
+  #strang-tool .viz-note {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #948c7c;
+    padding: 1.4rem 0.5rem;
+    text-align: center;
+  }
+  #strang-tool .g6-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #6b6355;
+    margin: 1.3rem 0 0.4rem;
+  }
+  #strang-tool .g6-box {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.75rem 0.8rem;
+  }
+  #strang-tool .g6-text {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    word-break: break-all;
+    color: var(--ink);
+    max-height: 9rem;
+    overflow-y: auto;
+    padding-right: 2.2rem;
+  }
+  #strang-tool .copy-btn {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    color: var(--accent);
+  }
+  #strang-tool .copy-btn:hover { background: var(--accent-dim); }
+  #strang-tool .warn {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: #8a6d1e;
+    background: #f7f0dd;
+    border: 1px solid #ddc98b;
+    border-radius: 3px;
+    padding: 0.55rem 0.75rem;
+    margin-top: 0.9rem;
+  }
+  #strang-tool .family-select {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 1.3rem;
+  }
+  #strang-tool .family-option {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.6rem 0.7rem;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  #strang-tool .family-option.active {
+    border-color: var(--accent);
+    background: #eef3f0;
+  }
+  #strang-tool .family-option input { display: none; }
+  #strang-tool .family-name {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--ink);
+    display: block;
+  }
+  #strang-tool .family-desc {
+    font-family: var(--serif);
+    font-size: 0.78rem;
+    color: #6b6355;
+    display: block;
+    margin-top: 0.15rem;
+    line-height: 1.35;
+  }
+</style>
+
+<div id="strang-tool">
+  <h1>Tree generator</h1>
+  <p class="subtitle">Two families of degree-structured trees, exported as graph6</p>
+
+  <div class="family-select">
+    <label class="family-option active" id="st-family-strang-label">
+      <input type="radio" name="st-family" value="strang" checked />
+      <span class="family-name">Strang tree</span>
+      <span class="family-desc">interior degree k, r layers; boundary degree 1</span>
+    </label>
+    <label class="family-option" id="st-family-decreasing-label">
+      <input type="radio" name="st-family" value="decreasing" />
+      <span class="family-name">Decreasing-degree tree</span>
+      <span class="family-desc">root degree k, shrinking by 1 each level down to leaves; single parameter k</span>
+    </label>
+    <label class="family-option" id="st-family-sequence-label">
+      <input type="radio" name="st-family" value="sequence" />
+      <span class="family-name">Sequence tree</span>
+      <span class="family-desc">[a0; a1, a2, ...] &mdash; root branches a0-way, each level-j node branches aj-way</span>
+    </label>
+  </div>
+
+  <div class="row">
+    <div class="field" id="st-k-field">
+      <label><span class="sym">k</span><span id="st-k-label">interior degree</span></label>
+      <input type="number" id="st-k" value="3" min="2" step="1" />
+      <span class="hint" id="st-k-hint">integer, k &ge; 2 (k = 2 gives a path graph)</span>
+    </div>
+    <div class="field" id="st-r-field">
+      <label><span class="sym">r</span>layers</label>
+      <input type="number" id="st-r" value="3" min="0" step="1" />
+      <span class="hint">integer, r &ge; 0</span>
+    </div>
+    <div class="field" id="st-seq-field" style="display:none">
+      <label><span class="sym">[a0;a1,...]</span>branching sequence</label>
+      <input type="text" id="st-seq" value="3,2,2" />
+      <span class="hint">comma-separated nonnegative integers, a0 first (e.g. 3,2,2 for Cayley(3,3))</span>
+    </div>
+  </div>
+
+  <button class="generate" id="st-generate">Build tree &amp; encode graph6</button>
+
+  <div id="st-error" style="display:none" class="error"></div>
+
+  <div id="st-results" style="display:none" class="results">
+    <div class="stat-line"><span id="st-N-label">total nodes N_r</span><span id="st-N"></span></div>
+    <div class="stat-line"><span id="st-B-label">boundary nodes B_r</span><span id="st-B"></span></div>
+    <div class="stat-line"><span>interior nodes</span><span id="st-I"></span></div>
+    <div class="check-ok" id="st-check"></div>
+
+    <div class="viz-label">tree layout</div>
+    <div class="viz-box" id="st-viz"></div>
+
+    <div class="g6-label">graph6 string</div>
+    <div class="g6-box">
+      <div class="g6-text" id="st-g6"></div>
+      <button class="copy-btn" id="st-copy">copy</button>
+    </div>
+
+    <div id="st-warn" style="display:none" class="warn"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var NODE_LIMIT = 200000;
+  var VISUALIZE_LIMIT = 3000;
+  // graph6 encodes the FULL upper-triangle bit vector, size N(N-1)/2. This is
+  // fine up to tens of thousands of nodes but a raw allocation attempt beyond
+  // roughly N~20000 either fails outright or produces a many-hundred-MB
+  // string that's useless to paste anywhere. Cap it explicitly and fail
+  // with a clear message rather than crashing or hanging the tab.
+  var GRAPH6_MAX_NODES = 20000;
+
+  function buildStrangTree(k, r) {
+    if (!Number.isInteger(k) || k < 2) throw new Error("k must be an integer greater than or equal to 2.");
+    if (!Number.isInteger(r) || r < 0) throw new Error("r must be a non-negative integer.");
+
+    var parent = [null];
+    var edges = [];
+
+    if (r === 0) {
+      return { numNodes: 1, edges: edges, boundary: [0], parent: parent };
+    }
+
+    var nextId = 1;
+    var root = 0;
+    var currentBoundary = [root];
+
+    for (var step = 1; step <= r; step++) {
+      var newBoundary = [];
+      for (var bi = 0; bi < currentBoundary.length; bi++) {
+        var node = currentBoundary[bi];
+        var numNew = (step === 1 && node === root) ? k : (k - 1);
+        for (var i = 0; i < numNew; i++) {
+          var newNode = nextId++;
+          edges.push([node, newNode]);
+          parent[newNode] = node;
+          newBoundary.push(newNode);
+          if (nextId > NODE_LIMIT) {
+            throw new Error("This choice of k and r produces more than " + NODE_LIMIT.toLocaleString() + " nodes. Pick a smaller r.");
+          }
+        }
+      }
+      currentBoundary = newBoundary;
+    }
+    return { numNodes: nextId, edges: edges, boundary: currentBoundary, parent: parent };
+  }
+
+  function expectedCounts(k, r) {
+    if (r === 0) return { N: 1, B: 1 };
+    var B = k * Math.pow(k - 1, r - 1);
+    var N = 1;
+    for (var step = 1; step <= r; step++) {
+      N += k * Math.pow(k - 1, step - 1);
+    }
+    return { N: N, B: B };
+  }
+
+  // Decreasing-degree tree: root has degree k; each node at level j (1<=j<=k-2)
+  // has degree (k-j); leaves sit at level (k-1) with degree 1. Depth is fixed
+  // by k alone, no separate radius parameter.
+  function buildDecreasingDegreeTree(k) {
+    if (!Number.isInteger(k) || k < 2) throw new Error("k must be an integer greater than or equal to 2.");
+
+    var edges = [];
+    var parent = [null];
+    var level = [0];
+    var nextId = 1;
+
+    var currentLevel = [];
+    for (var i = 0; i < k; i++) {
+      var nid = nextId++;
+      edges.push([0, nid]);
+      parent[nid] = 0;
+      level[nid] = 1;
+      currentLevel.push(nid);
+      if (nextId > NODE_LIMIT) throw new Error("This k produces more than " + NODE_LIMIT.toLocaleString() + " nodes. Pick a smaller k.");
+    }
+
+    var j = 1;
+    while (j <= k - 2) {
+      var numChildren = k - 1 - j;
+      var newLevel = [];
+      for (var bi = 0; bi < currentLevel.length; bi++) {
+        var node = currentLevel[bi];
+        for (var c = 0; c < numChildren; c++) {
+          var newNode = nextId++;
+          edges.push([node, newNode]);
+          parent[newNode] = node;
+          level[newNode] = j + 1;
+          newLevel.push(newNode);
+          if (nextId > NODE_LIMIT) throw new Error("This k produces more than " + NODE_LIMIT.toLocaleString() + " nodes. Pick a smaller k.");
+        }
+      }
+      currentLevel = newLevel;
+      j++;
+    }
+    return { numNodes: nextId, edges: edges, boundary: currentLevel, parent: parent, level: level };
+  }
+
+  function sanityCheckDecreasing(k, numNodes, edges, boundary, level) {
+    var problems = [];
+    if (edges.length !== numNodes - 1) problems.push("edge count " + edges.length + " is not N-1=" + (numNodes - 1) + ", not a tree");
+    var deg = degreeCounts(numNodes, edges);
+    var boundarySet = new Set(boundary);
+    for (var node = 0; node < numNodes; node++) {
+      var lvl = level[node];
+      var expectedDeg = (node === 0) ? k : (boundarySet.has(node) ? 1 : (k - lvl));
+      if (deg[node] !== expectedDeg) {
+        problems.push("node " + node + " (level " + lvl + ") has degree " + deg[node] + ", expected " + expectedDeg);
+        break;
+      }
+    }
+    // root must be the unique node of maximum degree k
+    var maxDegCount = 0;
+    for (var n2 = 0; n2 < numNodes; n2++) if (deg[n2] === k) maxDegCount++;
+    if (maxDegCount !== 1) problems.push("expected exactly one node of degree k (the root), found " + maxDegCount);
+    return problems;
+  }
+
+  function parseSequence(text) {
+    var parts = text.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+    if (parts.length === 0) throw new Error("Enter a sequence like 3,2,2 (a0 first).");
+    var seq = [];
+    for (var i = 0; i < parts.length; i++) {
+      var v = Number(parts[i]);
+      if (!Number.isInteger(v) || v < 0) throw new Error("Every entry must be a nonnegative integer. \"" + parts[i] + "\" isn't.");
+      seq.push(v);
+    }
+    return seq;
+  }
+
+  // Sequence tree: [a0; a1, a2, ..., a(L-1)]. Root branches a0-way into level 1;
+  // each level-j node (1<=j<=L-1) branches aj-way into level j+1. Root degree =
+  // a0; a non-root, non-final level-j node has degree 1+aj (parent + children);
+  // the final level's nodes have degree 1 (no more terms left to branch with).
+  // Cayley(k,r) = [k; k-1,...,k-1] (r-1 copies); the decreasing-degree tree
+  // = [k; k-2,k-3,...,1].
+  function buildSequenceTree(seq) {
+    var edges = [];
+    var parent = [null];
+    var level = [0];
+    var nextId = 1;
+    var currentLevel = [0];
+    for (var j = 0; j < seq.length; j++) {
+      var branch = seq[j];
+      var newLevel = [];
+      for (var bi = 0; bi < currentLevel.length; bi++) {
+        var node = currentLevel[bi];
+        for (var c = 0; c < branch; c++) {
+          var nid = nextId++;
+          edges.push([node, nid]);
+          parent[nid] = node;
+          level[nid] = j + 1;
+          newLevel.push(nid);
+          if (nextId > NODE_LIMIT) throw new Error("This sequence produces more than " + NODE_LIMIT.toLocaleString() + " nodes. Try a shorter or smaller sequence.");
+        }
+      }
+      currentLevel = newLevel;
+    }
+    return { numNodes: nextId, edges: edges, boundary: currentLevel, parent: parent, level: level };
+  }
+
+  function sanityCheckSequence(seq, numNodes, edges, boundary, level) {
+    var problems = [];
+    if (edges.length !== numNodes - 1) problems.push("edge count " + edges.length + " is not N-1=" + (numNodes - 1) + ", not a tree");
+    var deg = degreeCounts(numNodes, edges);
+    var L = seq.length;
+    for (var node = 0; node < numNodes; node++) {
+      var lvl = level[node];
+      var expectedDeg;
+      if (node === 0) {
+        expectedDeg = seq[0];
+      } else if (lvl < L) {
+        expectedDeg = 1 + seq[lvl];
+      } else {
+        expectedDeg = 1;
+      }
+      if (deg[node] !== expectedDeg) {
+        problems.push("node " + node + " (level " + lvl + ") has degree " + deg[node] + ", expected " + expectedDeg);
+        break;
+      }
+    }
+    return problems;
+  }
+
+  function encodeN(n) {
+    function R(x) { return x + 63; }
+    if (n <= 62) return [R(n)];
+    if (n <= 258047) {
+      var bytes = [126];
+      for (var shift = 12; shift >= 0; shift -= 6) bytes.push(R((n >> shift) & 0x3f));
+      return bytes;
+    }
+    var bytes2 = [126, 126];
+    for (var shift2 = 30; shift2 >= 0; shift2 -= 6) bytes2.push(R((n >> shift2) & 0x3f));
+    return bytes2;
+  }
+
+  function toGraph6(numNodes, parent) {
+    // Every tree here is built breadth/level-order, so a node's id is always
+    // greater than its parent's id (parent[child] < child, always). That lets
+    // us test "is (i,j) an edge" with a single array read, parent[j]===i,
+    // instead of a Set<string> lookup - avoiding ~N^2/2 string allocations,
+    // which is what actually blew up (RangeError / multi-GB memory) once N
+    // reached the tens of thousands.
+    var n = numNodes;
+    if (n > GRAPH6_MAX_NODES) {
+      var bitsNeeded = n * (n - 1) / 2;
+      throw new Error(
+        "This tree has " + n.toLocaleString() + " nodes. graph6 encodes the full upper-triangle " +
+        "of the adjacency matrix (" + Math.round(bitsNeeded).toLocaleString() + " bits here) even though the tree itself is sparse, " +
+        "so beyond about " + GRAPH6_MAX_NODES.toLocaleString() + " nodes the output becomes too large to safely build or use " +
+        "(tens to hundreds of MB of text). Pick a smaller parameter, or use a sparse edge-list export if your simulator supports one."
+      );
+    }
+    var bitCount = n * (n - 1) / 2;
+    var bits = new Uint8Array(bitCount);
+    var idx = 0;
+    for (var j = 1; j < n; j++) {
+      for (var i = 0; i < j; i++) {
+        bits[idx++] = (parent[j] === i) ? 1 : 0;
+      }
+    }
+    var nChars = Math.ceil(bitCount / 6);
+    var chars = new Array(nChars);
+    for (var c = 0; c < nChars; c++) {
+      var val = 0;
+      for (var bpos = 0; bpos < 6; bpos++) {
+        var pos = c * 6 + bpos;
+        val = (val << 1) | (pos < bitCount ? bits[pos] : 0);
+      }
+      chars[c] = val + 63;
+    }
+    var allBytes = encodeN(n).concat(chars);
+    return bytesToString(allBytes);
+  }
+
+  function bytesToString(bytes) {
+    // Building this with String.fromCharCode.apply(null, bytes) in one call
+    // overflows the JS call stack once bytes.length reaches roughly 10^5,
+    // because graph6's bit-vector is O(N^2) even for a sparse tree. Chunking
+    // avoids that while still using the fast native path per chunk.
+    var CHUNK = 8192;
+    var parts = [];
+    for (var i = 0; i < bytes.length; i += CHUNK) {
+      parts.push(String.fromCharCode.apply(null, bytes.slice(i, i + CHUNK)));
+    }
+    return parts.join('');
+  }
+
+  function degreeCounts(numNodes, edges) {
+    var deg = new Array(numNodes).fill(0);
+    for (var e = 0; e < edges.length; e++) {
+      deg[edges[e][0]]++;
+      deg[edges[e][1]]++;
+    }
+    return deg;
+  }
+
+  function sanityCheck(k, r, numNodes, edges, boundary) {
+    var problems = [];
+    var counts = expectedCounts(k, r);
+    if (numNodes !== counts.N) problems.push("node count mismatch: got " + numNodes + ", expected " + counts.N);
+    if (boundary.length !== counts.B) problems.push("boundary count mismatch: got " + boundary.length + ", expected " + counts.B);
+    if (r > 0) {
+      var deg = degreeCounts(numNodes, edges);
+      var boundarySet = new Set(boundary);
+      for (var node = 0; node < numNodes; node++) {
+        var expectedDeg = boundarySet.has(node) ? 1 : k;
+        if (deg[node] !== expectedDeg) {
+          problems.push("node " + node + " has degree " + deg[node] + ", expected " + expectedDeg);
+          break;
+        }
+      }
+      if (edges.length !== numNodes - 1) problems.push("edge count " + edges.length + " is not N-1=" + (numNodes - 1));
+    }
+    return problems;
+  }
+
+  function buildHierarchy(numNodes, parent) {
+    var childrenMap = [];
+    for (var i = 0; i < numNodes; i++) childrenMap.push([]);
+    for (var node = 1; node < numNodes; node++) {
+      childrenMap[parent[node]].push(node);
+    }
+    function toNode(id) {
+      var kids = childrenMap[id];
+      if (kids.length === 0) return { id: id };
+      var childNodes = [];
+      for (var c = 0; c < kids.length; c++) childNodes.push(toNode(kids[c]));
+      return { id: id, children: childNodes };
+    }
+    return toNode(0);
+  }
+
+  function drawTree(container, numNodes, parent) {
+    container.innerHTML = "";
+    if (numNodes > VISUALIZE_LIMIT) {
+      var note = document.createElement("div");
+      note.className = "viz-note";
+      note.textContent = "Tree has " + numNodes.toLocaleString() + " nodes, too many to draw clearly here. Stats and graph6 output above are still exact.";
+      container.appendChild(note);
+      return;
+    }
+    if (numNodes === 1) {
+      var svgSingle = d3.select(container).append("svg").attr("width", 120).attr("height", 120).attr("viewBox", "-60 -60 120 120");
+      svgSingle.append("circle").attr("r", 6).attr("fill", "#3d6b5c");
+      return;
+    }
+
+    var hierarchyData = buildHierarchy(numNodes, parent);
+    var root = d3.hierarchy(hierarchyData);
+    var treeLayout = d3.tree().size([2 * Math.PI, 1]).separation(function(a, b) {
+      return (a.parent === b.parent ? 1 : 2) / a.depth;
+    });
+    treeLayout(root);
+
+    root.each(function(d) {
+      var angle = d.x - Math.PI / 2;
+      var radius = d.y;
+      d.cx = radius * Math.cos(angle);
+      d.cy = radius * Math.sin(angle);
+    });
+
+    var size = 460;
+    var margin = 24;
+    var scale = (size / 2 - margin);
+
+    var svg = d3.select(container).append("svg")
+      .attr("width", size)
+      .attr("height", size)
+      .attr("viewBox", "0 0 " + size + " " + size);
+
+    var g = svg.append("g").attr("transform", "translate(" + (size / 2) + "," + (size / 2) + ")");
+
+    var links = root.links();
+    g.selectAll("line")
+      .data(links)
+      .enter()
+      .append("line")
+      .attr("x1", function(d) { return d.source.cx * scale; })
+      .attr("y1", function(d) { return d.source.cy * scale; })
+      .attr("x2", function(d) { return d.target.cx * scale; })
+      .attr("y2", function(d) { return d.target.cy * scale; })
+      .attr("stroke", "#c9c2b2")
+      .attr("stroke-width", 1);
+
+    var nodes = root.descendants();
+    g.selectAll("circle")
+      .data(nodes)
+      .enter()
+      .append("circle")
+      .attr("cx", function(d) { return d.cx * scale; })
+      .attr("cy", function(d) { return d.cy * scale; })
+      .attr("r", function(d) { return d.depth === 0 ? 5 : (d.children ? 3 : 2); })
+      .attr("fill", function(d) { return d.depth === 0 ? "#3d6b5c" : (d.children ? "#6b9484" : "#a9c4ba"); });
+  }
+
+  var kInput = document.getElementById('st-k');
+  var rInput = document.getElementById('st-r');
+  var seqInput = document.getElementById('st-seq');
+  var kField = document.getElementById('st-k-field');
+  var rField = document.getElementById('st-r-field');
+  var seqField = document.getElementById('st-seq-field');
+  var kLabel = document.getElementById('st-k-label');
+  var kHint = document.getElementById('st-k-hint');
+  var strangLabel = document.getElementById('st-family-strang-label');
+  var decreasingLabel = document.getElementById('st-family-decreasing-label');
+  var sequenceLabel = document.getElementById('st-family-sequence-label');
+  var familyRadios = document.getElementsByName('st-family');
+  var generateBtn = document.getElementById('st-generate');
+  var errorBox = document.getElementById('st-error');
+  var warnBox = document.getElementById('st-warn');
+  var resultsBox = document.getElementById('st-results');
+  var g6Box = document.getElementById('st-g6');
+  var copyBtn = document.getElementById('st-copy');
+  var vizBox = document.getElementById('st-viz');
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+    resultsBox.style.display = 'none';
+  }
+
+  function getFamily() {
+    for (var i = 0; i < familyRadios.length; i++) if (familyRadios[i].checked) return familyRadios[i].value;
+    return 'strang';
+  }
+
+  function updateFamilyUI() {
+    var family = getFamily();
+    strangLabel.classList.toggle('active', family === 'strang');
+    decreasingLabel.classList.toggle('active', family === 'decreasing');
+    sequenceLabel.classList.toggle('active', family === 'sequence');
+    var nLabel = document.getElementById('st-N-label');
+    var bLabel = document.getElementById('st-B-label');
+    if (family === 'strang') {
+      kField.style.display = '';
+      rField.style.display = '';
+      seqField.style.display = 'none';
+      kLabel.textContent = 'interior degree';
+      kHint.textContent = 'integer, k \u2265 2 (k = 2 gives a path graph)';
+      nLabel.textContent = 'total nodes N_r';
+      bLabel.textContent = 'boundary nodes B_r';
+    } else if (family === 'decreasing') {
+      kField.style.display = '';
+      rField.style.display = 'none';
+      seqField.style.display = 'none';
+      kLabel.textContent = 'root degree';
+      kHint.textContent = 'integer, k \u2265 2 \u2014 depth is fixed at k\u22121 levels, no r needed';
+      nLabel.textContent = 'total nodes N(k)';
+      bLabel.textContent = 'leaves';
+    } else {
+      kField.style.display = 'none';
+      rField.style.display = 'none';
+      seqField.style.display = '';
+      nLabel.textContent = 'total nodes';
+      bLabel.textContent = 'final-level nodes';
+    }
+  }
+  for (var fr = 0; fr < familyRadios.length; fr++) familyRadios[fr].addEventListener('change', updateFamilyUI);
+  updateFamilyUI();
+
+  generateBtn.addEventListener('click', function() {
+    errorBox.style.display = 'none';
+    warnBox.style.display = 'none';
+
+    var family = getFamily();
+    var k = parseInt(kInput.value, 10);
+    var built, problems, checkMsg;
+
+    if (family === 'strang') {
+      var r = parseInt(rInput.value, 10);
+      try {
+        built = buildStrangTree(k, r);
+      } catch (e) {
+        showError(e.message);
+        return;
+      }
+      problems = sanityCheck(k, r, built.numNodes, built.edges, built.boundary);
+      checkMsg = "sanity checks passed: node counts, boundary count, and all degrees match the formulas in the paper";
+    } else if (family === 'decreasing') {
+      try {
+        built = buildDecreasingDegreeTree(k);
+      } catch (e) {
+        showError(e.message);
+        return;
+      }
+      problems = sanityCheckDecreasing(k, built.numNodes, built.edges, built.boundary, built.level);
+      checkMsg = "sanity checks passed: it's a tree, degrees decrease by exactly 1 per level from the root, and the root is the unique degree-k node";
+    } else {
+      var seq;
+      try {
+        seq = parseSequence(seqInput.value);
+        built = buildSequenceTree(seq);
+      } catch (e) {
+        showError(e.message);
+        return;
+      }
+      problems = sanityCheckSequence(seq, built.numNodes, built.edges, built.boundary, built.level);
+      checkMsg = "sanity checks passed: it's a tree and every level's degree matches the sequence exactly";
+    }
+
+    if (problems.length > 0) {
+      showError("Sanity check failed, refusing to output a graph6 string:\n" + problems.join("\n"));
+      return;
+    }
+
+    var numNodes = built.numNodes, edges = built.edges, boundary = built.boundary, parent = built.parent;
+    var g6;
+    try {
+      g6 = toGraph6(numNodes, parent);
+    } catch (e) {
+      showError(e.message);
+      return;
+    }
+
+    document.getElementById('st-N').textContent = numNodes.toLocaleString();
+    document.getElementById('st-B').textContent = boundary.length.toLocaleString();
+    document.getElementById('st-I').textContent = (numNodes - boundary.length).toLocaleString();
+    document.getElementById('st-check').textContent = checkMsg;
+    g6Box.textContent = g6;
+    resultsBox.style.display = 'block';
+
+    drawTree(vizBox, numNodes, parent);
+
+    if (g6.length > 20000) {
+      warnBox.textContent = "Heads up: graph6 encodes the full upper-triangle of the adjacency matrix, so its length grows like N^2 even for a sparse tree. This string is " + g6.length.toLocaleString() + " characters. It's correct and your simulator should parse it fine, but for trees this large a sparse edge-list format would be far more compact if your simulator supports one.";
+      warnBox.style.display = 'block';
+    } else if (numNodes > 5000) {
+      warnBox.textContent = "Heads up: this tree has " + numNodes.toLocaleString() + " nodes. The graph6 string is long but valid, your simulator should parse it fine.";
+      warnBox.style.display = 'block';
+    }
+  });
+
+  copyBtn.addEventListener('click', function() {
+    var text = g6Box.textContent;
+    copyText(text);
+  });
+
+  function copyText(text) {
+    // navigator.clipboard is frequently blocked in sandboxed iframes (like this
+    // artifact) without throwing anything visible - it just silently rejects.
+    // Fall back to the legacy execCommand approach, and if even that fails,
+    // select the text so the person can copy it manually with ctrl/cmd+C.
+    function showCopied() {
+      copyBtn.textContent = 'copied';
+      setTimeout(function() { copyBtn.textContent = 'copy'; }, 1200);
+    }
+    function legacyCopy() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.left = '-1000px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    }
+    function selectG6Text() {
+      var range = document.createRange();
+      range.selectNodeContents(g6Box);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showCopied, function() {
+        if (legacyCopy()) { showCopied(); }
+        else { selectG6Text(); copyBtn.textContent = 'selected, use \u2318/ctrl+C'; setTimeout(function() { copyBtn.textContent = 'copy'; }, 2500); }
+      });
+    } else {
+      if (legacyCopy()) { showCopied(); }
+      else { selectG6Text(); copyBtn.textContent = 'selected, use \u2318/ctrl+C'; setTimeout(function() { copyBtn.textContent = 'copy'; }, 2500); }
+    }
+  }
+
+  generateBtn.click();
+})();
+</script>
